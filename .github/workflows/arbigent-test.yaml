@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 jobs:
-  cli-e2e:
+  arbigent-test:
     runs-on: ubuntu-latest
     steps:
       - name: Delete unnecessary tools 🔧
@@ -54,7 +54,7 @@ jobs:
           wget https://github.com/takahirom/arbigent/releases/download/${{ env.ARBIGENT_VERSION }}/arbigent-${{ env.ARBIGENT_VERSION }}.zip
           unzip arbigent-${{ env.ARBIGENT_VERSION }}.zip
 
-      - name: CLI E2E test
+      - name: Arbigent test
         uses: reactivecircus/android-emulator-runner@v2
         env:
           MOSAIC_RAW_MODE: false
