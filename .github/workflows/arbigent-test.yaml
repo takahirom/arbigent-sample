@@ -10,13 +10,13 @@ on:
 
 env:
   GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -Dorg.gradle.daemon=false -Dkotlin.incremental=false"
-  ARBIGENT_VERSION: "0.4.0"
+  ARBIGENT_VERSION: "0.11.0"
 
 permissions:
   contents: write
 
 jobs:
-  arbigent-test:
+  arbigent-test-android:
     runs-on: ubuntu-latest
     steps:
       - name: Delete unnecessary tools 🔧
@@ -66,12 +66,84 @@ jobs:
           disk-size: 6000M
           heap-size: 600M
           script: |
-            arbigent-${{ env.ARBIGENT_VERSION }}/bin/arbigent --os=android --project-file=arbigent-project.yaml --ai-type=gemini --gemini-model-name=gemini-2.0-flash-exp
+            arbigent-${{ env.ARBIGENT_VERSION }}/bin/arbigent --os=android --project-file=arbigent-project-android.yaml --ai-type=gemini --gemini-model-name=gemini-2.0-flash-exp
 
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
         if: ${{ always() }}
         with:
-          name: cli-report
+          name: arbigent-report-android
+          path: |
+            arbigent-result/*
+          retention-days: 120
+
+  arbigent-test-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '17'
+
+      - name: Download arbigent
+        run: |
+          wget https://github.com/takahirom/arbigent/releases/download/${{ env.ARBIGENT_VERSION }}/arbigent-${{ env.ARBIGENT_VERSION }}.zip
+          unzip arbigent-${{ env.ARBIGENT_VERSION }}.zip
+
+      - name: Install Xcode
+        run: |
+          # Select Xcode 15.4
+          sudo xcode-select -s /Applications/Xcode_15.4.app
+          # Check Xcode version
+          xcodebuild -version
+
+      - name: Install applesimutils
+        run: brew tap wix/brew && brew install applesimutils
+
+      - name: Start iOS Simulator
+        run: |
+          # List available devices
+          xcrun simctl list devices
+          # Start iPhone 15 Pro simulator
+          xcrun simctl boot "iPhone 15 Pro"
+          # Check simulator status periodically
+          SIMULATOR_BOOTED="false"
+          for i in {1..60}; do # Check for 1 minute (adjust as needed)
+            echo "Simulator status (attempt $i):"
+            STATUS=$(xcrun simctl bootstatus "iPhone 15 Pro")
+            echo "$STATUS"
+            if echo "$STATUS" | grep -q "Device already booted, nothing to do."; then
+              SIMULATOR_BOOTED="true"
+              break
+            elif echo "$STATUS" | grep -q "Status=4294967295, isTerminal=YES"; then
+              # This case is Finished, so treat it as Booted.
+              SIMULATOR_BOOTED="true"
+              break
+            elif echo "$STATUS" | grep -q "Error:"; then
+              echo "Error: Simulator encountered an error during boot."
+              exit 1
+            fi
+            sleep 5
+          done
+          
+          # Check if the simulator booted successfully
+          if [ "$SIMULATOR_BOOTED" = "false" ]; then
+            echo "Error: Simulator failed to boot within the timeout period."
+            exit 1
+          fi
+          echo "Simulator booted successfully."
+
+      - name: Arbigent iOS test
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
+        run: |
+          arbigent-${{ env.ARBIGENT_VERSION }}/bin/arbigent --os=ios --project-file=arbigent-project-ios.yaml --ai-type=gemini --gemini-model-name=gemini-2.0-flash-exp
+
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
+        if: ${{ always() }}
+        with:
+          name: arbigent-report-ios
           path: |
             arbigent-result/*
           retention-days: 120
