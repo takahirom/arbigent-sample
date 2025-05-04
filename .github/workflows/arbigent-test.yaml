@@ -10,7 +10,7 @@ on:
 
 env:
   GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -Dorg.gradle.daemon=false -Dkotlin.incremental=false"
-  ARBIGENT_VERSION: "0.11.0"
+  ARBIGENT_VERSION: "0.43.0"
 
 permissions:
   contents: write
